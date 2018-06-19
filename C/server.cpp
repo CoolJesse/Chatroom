@@ -1,21 +1,23 @@
-
-//c++ headers////////////
+/*************c++ headers***************/
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
 #include <string>
 #include <cstring>
 #include <map>
-//////////////////////////
-//c headers//////////////
+/**************************************/
+/*************c headers****************/
 #include <math.h>
 #include <stdio.h> //input and output
-#include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>  //contains definitions of a number of data types used in system calls	
 #include <sys/socket.h> //includes a number of definitions of structures needed for sockets
 #include <netinet/in.h> //contains constants and  structures needed for internet domain addresses "sockaddr_in"
-
+/*******************************************/
+/*********Added for new approach************/
+#include <sys/time.h> //FD_SET, FD_ISSET, FD_ZERO macros
+#include <arpa/inet.h>
+#include <errno.h>
 using namespace std;
 
 static int MAXCLIENTS = 3; //the maximum number of clients allowed for this project
@@ -112,16 +114,62 @@ int main()
 /**************************************************************The code for the server***************************************************************/
 /****************************************************************************************************************************************************/
 
-    int sockfd, newsockfd; //file descriptors store the values returned by the socket system call and the accept system call
+    int opt = 1;//TRUE;  
+    int master_socket , new_socket; //file descriptors store the values returned by the socket system call and the accept system call
+	int addrlen, activity, i , valread , sd; ;
+	int client_socket[30];  
+    int max_sd;  
+    struct sockaddr_in address; 
+
+    char buffer[1025];  //data buffer of 1K 
+        
+    //set of socket descriptors 
+    fd_set readfds;  
+        
+
+    //a message 
+    char *message = "ECHO Daemon v1.0 \r\n";  
+    
+    //initialise all client_socket[] to 0 so not checked 
+    for (i = 0; i < MAXCLIENTS; i++)  
+    {  
+        client_socket[i] = 0;  
+    }  
+        
+    //create a master socket 
+    if( (master_socket = socket(AF_INET , SOCK_STREAM , 0)) == 0)  
+    {  
+        perror("socket failed");  
+        exit(EXIT_FAILURE);  
+    }  
+    
+    //set master socket to allow multiple connections , 
+    //this is just a good habit, it will work without this 
+    if( setsockopt(master_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, 
+          sizeof(opt)) < 0 )  
+    {  
+        perror("setsockopt");  
+        exit(EXIT_FAILURE);  
+    }  
+    
+    //type of socket created 
+    //address.sin_family = AF_INET;  
+    //address.sin_addr.s_addr = INADDR_ANY;  
+    //address.sin_port = htons( PORT );  		
+	
+/*****************************************************************************************************************************************************/
+/*
+	int sockfd, newsockfd; //file descriptors store the values returned by the socket system call and the accept system call
 	int portno; //stores the port number on which the server accepts connections
     socklen_t clilen;//stores the size of the address of the client. Needed for the accept system call
 	int pid; //for child process
 	int numberOfClients(0); //the number of clients connected to the serve
-
+*/
 	/*sockaddr_in is a structure containing an internet address. Defined in netinet/in.h. serv_addr contains address of server*/
 	/*declares two sockaddr_in structs; serv_addr and cli_addr*/
-    struct sockaddr_in serv_addr, cli_addr;
-
+/*   struct sockaddr_in serv_addr, cli_addr;
+*/
+/*****************************************************************************************************************************************************/
 		
 	//int clilen;
     //int n; //return value for the read() and write() calls. Contains the number of characters read or written 
@@ -142,47 +190,74 @@ int main()
 	respectively. The third being the protocal, almost always zero. OS will choose most appropriate protocal TCP for stream and UDP for 
 	datagram Socket system call returns an entry into the file descriptor table. This value is used for all subsequent references to this socket*/
 	 
-    sockfd = socket(AF_INET, SOCK_STREAM,0); //socket system call returns int value to reference socket 	
+    /*sockfd = socket(AF_INET, SOCK_STREAM,0); //socket system call returns int value to reference socket 	
 	if (sockfd < 0) //If socket call fails returns -1
         error("ERROR opening socket");
-		
+	*/
+	
 	/*sets all values in a buffer to zero. Initializes struct sockaddr_in serv_addr to all zeros. Takes two arguments, the first being a pointer to 
 	the buffer and the second is the size fo the buffer.*/
-    bzero((char *) &serv_addr, sizeof(serv_addr));
+    //bzero((char *) &serv_addr, sizeof(serv_addr));
 	
 	//We do not need the function below since we are providing the port number
 	 /*atoi() function converts string of digits to an integer. Takes port number on which server listens for connection passed as argument,
 	 and sets portno equal to this integer value*/
     //portno = atoi(argv[1]); 
 	
-	 portno = PORTNUMBER; //we defined the port number as a const int variable at the beginning of out code on line 21
+	 //portno = PORTNUMBER; //we defined the port number as a const int variable at the beginning of out code on line 21
 
 /*******************************************************Modifies struct sockaddr_in serv_addr********************************************************/
 
-	/*serv_addr has four member variables, the first of which short sin_family should always be set to the symbolic constant AF_INET*/
-    serv_addr.sin_family = AF_INET; 
+/**********serv_addr has four member variables, the first of which short sin_family should always be set to the symbolic constant AF_INET************/
+	
+	address.sin_family = AF_INET; //New Approach
+    //serv_addr.sin_family = AF_INET; 
 								   //
-	/*third member variable of sockaddr_in is struct of type struct in_addr which contains only a single filed unsigned long s_addr this field 
-	contains the IP address of the host. For server this will always be IP address of machine server is running on. Symbolic constant to obtain*/ 
-	/*IP address of machine server running on INADDR_ANY*/						    
-    serv_addr.sin_addr.s_addr = INADDR_ANY; 
+/*****third member variable of sockaddr_in is struct of type struct in_addr which contains only a single filed unsigned long s_addr this field******/
+/****contains the IP address of the host. For server this will always be IP address of machine server is running on. Symbolic constant to obtain****/ 
+/******************************************IP address of machine server running on INADDR_ANY*******************************************************/
+	
+    address.sin_addr.s_addr = INADDR_ANY; //New Approach
+	//serv_addr.sin_addr.s_addr = INADDR_ANY; 
 											 											      
-	/*htons() function converts port number from host byte order to to network byte order and passes value to second field of serv_addr*/									       
-	serv_addr.sin_port = htons(portno); 
+/*********htons() function converts port number from host byte order to to network byte order and passes value to second field of serv_addr**********/
+	
+	address.sin_port = htons( PORTNUMBER ); //New Approach
+	//serv_addr.sin_port = htons(portno); 
 
 /********************************************************************Bind Socket*********************************************************************/
 
+	//bind the socket to localhost port 8888 
+    if (bind(master_socket, (struct sockaddr *)&address, sizeof(address))<0)  
+    {  
+        perror("bind failed");  
+        exit(EXIT_FAILURE);  
+    }  
+    printf("Listener on port %d \n", PORTNUMBER);  
+      
+	
 	/*bind() system call binds a socket to an address, in this case the address of the host and the port number on which the server runs*/
-    if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
-        error("ERROR on binding");                                     
+   /* if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
+        error("ERROR on binding"); */                                   
 	
 /***********************************************************************Listen***********************************************************************/
 	
-	/*Allows process to listen on socket for connection. The second argument is the size of the backlog queue*/
-    listen(sockfd,5);
+	//try to specify maximum of 3 pending connections for the master socket 
+    if (listen(master_socket, 3) < 0)  
+    {  
+        perror("listen");  
+        exit(EXIT_FAILURE);  
+    } 
 	
+	/*Allows process to listen on socket for connection. The second argument is the size of the backlog queue*/
+    //listen(sockfd,5);
+	
+	//accept the incoming connection 
+    addrlen = sizeof(address);  
+    puts("Waiting for connections ...");  
+        
 	/*size of future client address*/
-    clilen = sizeof(cli_addr); 
+    //clilen = sizeof(cli_addr); 
 
 /***************************************************Loop allows server to handle multiple connections************************************************/
 /****************************************************************************************************************************************************/
