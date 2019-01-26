@@ -39,24 +39,25 @@ const int MAX_NUMBER_THREADS = 10;
 const char* HOST = "127.0.0.1";
 const int PORT_NUMBER = 50000; 
 
-/** Function Declarations *****************************************************************************************/
+/** Function Declarations *************************************************************************************************/
 void server_function(int & client_socket, list<user_info> users);
 bool login_function(int client_socket, list<user_info>& users, string& member_id);
 void incoming_communication_handler(const int& client_socket, list<user_info>& users);
 void outgoing_communication_handler(const int& client_socket, list<user_info>& users, char buffer[], const int& size,  const string& sender, const string& command, const string& message);
 
-/** Global Objects ************************************************************************************************/
+/** Global Objects Every Thread Can Access ********************************************************************************/
 char const *read_file = "user_records.txt";
 
-list<user_info> users = tools::read_from_file(read_file); /* declare and initilize list of users */
-list<active_user_info> active_users;
+list<user_info> users = tools::read_from_file(read_file); /** use read_from_file() from helper.h namespace tools to populate list **/
+list<active_user_info> active_users; /** users are added and removed from list when they log on and logoff respectively **/
 
-int number_of_threads;
-thread thread_ids[MAX_NUMBER_THREADS];
+int number_of_threads; /** number of active user threads **/
+thread thread_ids[MAX_NUMBER_THREADS]; /** maximum number of users who can connect to chatroom **/
 
-mutex mtx;
+mutex mtx; /** thread lock for securing resources **/
 
-/** Main body of program *****************************************************************************************/
+/**************************************************************************************************************************/
+/** Main body of program **************************************************************************************************/
 int main()
 {
 	/** List all registered members **************************************************************************/
@@ -67,16 +68,16 @@ int main()
 /** The code for the server ************************************************************************************************/
 
     	struct sockaddr_in serv_addr; /** structure containing an internet address. Defined in netinet/in.h **/
-	struct sockaddr_in cli_addr;
+	struct sockaddr_in cli_addr; /** structure containing an internet address. Defined in netinet/in.h **/
 
     	int server_socket, client_socket; //file descriptors store the values returned by the socket system call and the accept system call
-	int clilen; /*size of future client address*/
+	int clilen; /** size of future client address **/
     	//int n; //return value for the read() and write() calls. Contains the number of characters read or written 
 
 /** Create Socket ************************************************************************************************************/	
 
-	/*Socket system call: socket() creates a new socket. Takes three arguments; the first being the address domain, 
-	either AF_UNIX or AF_INET. The second argument being the type of socket, either SOCK_STREAM or SOCK_DGRAM for either stream or 		datagram sockets, respectively. The third being the protocol, almost always zero. OS will choose most appropriate protocal TCP for 		stream and UDP for datagram Socket system call returns an entry into the file descriptor table. This value is used for all subsequent 		references to this socket*/
+	/** Socket system call: socket() creates a new socket. Takes three arguments; the first being the address domain, 
+	either AF_UNIX or AF_INET. The second argument being the type of socket, either SOCK_STREAM or SOCK_DGRAM for either stream or 		datagram sockets, respectively. The third being the protocol, almost always zero. OS will choose most appropriate protocal TCP for 		stream and UDP for datagram Socket system call returns an entry into the file descriptor table. This value is used for all 		subsequent references to this socket **/
 	 
 	if( (server_socket = socket(AF_INET, SOCK_STREAM,0)) < 0) 
         	cerr << "ERROR opening socket\n";
@@ -89,17 +90,17 @@ int main()
 
 /** Modifies sockaddr_in serv_addr ************************************************************************************************/
 
-	/*sets all values in a buffer to zero. Initializes serv_addr to all zeros. Takes two arguments, the first being a pointer to the 		buffer and the second is the size fo the buffer.*/
+	/** sets all values in a buffer to zero. Initializes serv_addr to all zeros. Takes two arguments, the first being a pointer to the 		buffer and the second is the size fo the buffer. **/
 
 	bzero((char *) &serv_addr, sizeof(serv_addr));
 	bzero((char *) &cli_addr, sizeof(cli_addr));
 
-	/*serv_addr is a structure of type struct sockaddr_in. This structure has four fields,the first of which short sin_family*/
-	/*should always be set to the symbolic constant AF_INET*/
+	/** serv_addr is a structure of type struct sockaddr_in. This structure has four fields,the first of which short sin_family **/
+	/** should always be set to the symbolic constant AF_INET **/
 
-	/*third field of sockaddr_in is struct of type struct in_addr which contains only a single filed unsigned long s_addr this field 	contains the IP address of the host. For server this will always be IP address of machine server is running on. Symbolic constant to 		obtain IP address of machine server running on INADDR_ANY*/
+	/** third field of sockaddr_in is struct of type struct in_addr which contains only a single filed unsigned long s_addr this field 		contains the IP address of the host. For server this will always be IP address of machine server is running on. Symbolic constant 		to obtain IP address of machine server running on INADDR_ANY **/
 
-	/*htons() function converts port number from host byte order to to network byte order and passes value to second field of 		serv_addr*/
+	/** htons() function converts port number from host byte order to to network byte order and passes value to second field of 		serv_addr **/
 
     	serv_addr.sin_family = AF_INET; 					    
 	serv_addr.sin_addr.s_addr = INADDR_ANY;				       
@@ -120,13 +121,15 @@ int main()
 
 /** Infinite loop continues to listen for connections to server socket *************************************************************/
 
+	/** user arrary to keep track of every file descriptor in use as a socket **/
 	int socket_array[MAX_NUMBER_THREADS] = {-1};
 
+	/** Infinte loop allows server_socket to continue to listen for connections **/
 	while(1)
 	{	
 		cout << "Waiting for connection..." << endl;
 
-		/*accept() system call causes the process to block until a client connects to the server It returns a new file descriptor and 			all communication on this connection should be done using the new file descriptor. The second arguement is a reference pointer 			to the address of the client on the other end of the connection*/
+		/*accept() system call causes the process to block until a client connects to the server It returns a new file descriptor 			and all communication on this connection should be done using the new file descriptor. The second argument is a reference 			pointer to the address of the client on the other end of the connection*/
 
 		if( (client_socket = accept(server_socket, (struct sockaddr *)&cli_addr, (socklen_t*)&clilen)) < 0 )
 		{                  
@@ -139,13 +142,14 @@ int main()
 		/* function to allow communication between server and client */
 		if(number_of_threads < MAX_NUMBER_THREADS)
 		{
+			/** iterate through socket_array to find empty position **/
 			int i = 0;
 			for(; socket_array[i] != -1 && i < MAX_NUMBER_THREADS; i++)
 			{}
 
-			socket_array[i] = client_socket;
+			socket_array[i] = client_socket; /** empty position found at index i **/
 
-			
+			/** spawn thread to handle client that just connected **/
 			for(int j=0; j < MAX_NUMBER_THREADS; j++)
 			{
 				if( thread_ids[j].get_id() == thread::id{} )
@@ -154,6 +158,7 @@ int main()
 					cout << "thread_ids index is: " << i << endl;
 					/***********************************************************/
 
+					/** spawn thread and set thread_ids[j] equal to new thread id **/
 					thread_ids[j] = ( thread(server_function, ref(socket_array[i]), users) );
 					break;
 				}
