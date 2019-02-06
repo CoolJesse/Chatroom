@@ -1,4 +1,3 @@
-
 /** C++ libraries *********************************************************************************************************/
 #include <iostream>
 #include <fstream>
@@ -60,7 +59,7 @@ mutex mtx; /** thread lock for securing resources **/
 /** Main body of program **************************************************************************************************/
 int main()
 {
-	/** List all registered members **************************************************************************/
+	/** Print list of all registered members ******************************************************************/
 	for(list<user_info>::iterator it = users.begin(); it != users.end(); it++)
 		cout << "User name: " << ( *it).get_user_name() << " Password: " << (*it).get_password() << endl;
     	/*********************************************************************************************************/
@@ -74,7 +73,7 @@ int main()
 	int clilen; /** size of future client address **/
     	//int n; //return value for the read() and write() calls. Contains the number of characters read or written 
 
-/** Create Socket ************************************************************************************************************/	
+/** Create server socket to listen for connections *******************************************************************************/	
 
 	/** Socket system call: socket() creates a new socket. Takes three arguments; the first being the address domain, 
 	either AF_UNIX or AF_INET. The second argument being the type of socket, either SOCK_STREAM or SOCK_DGRAM for either stream or 		datagram sockets, respectively. The third being the protocol, almost always zero. OS will choose most appropriate protocal TCP for 		stream and UDP for datagram Socket system call returns an entry into the file descriptor table. This value is used for all 		subsequent references to this socket **/
@@ -82,7 +81,7 @@ int main()
 	if( (server_socket = socket(AF_INET, SOCK_STREAM,0)) < 0) 
         	cerr << "ERROR opening socket\n";
 
-/** Setsockopt to allow for reusing of port **************************************************************************************/
+/** Setsockopt() to allow for reusing of ports after connections terminate *********************************************************/
 
 	int opt = 1;
 	if( setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) < 0)
@@ -117,7 +116,7 @@ int main()
 	
 /** Listen ************************************************************************************************************************/	
 	/** Allows process to listen on socket for connection. The second argument is the size of the backlog queue **/
-	listen(server_socket,5);
+	listen(server_socket, 5);
 
 /** Infinite loop continues to listen for connections to server socket *************************************************************/
 
