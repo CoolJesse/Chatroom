@@ -2,13 +2,9 @@ import socket
 import time
 import threading
 
-from threading import *
-
 #-- Declare user id a=to be changed once client logs in ------------------------------------------------#
 USER_ID = 'userID'
 #-------------------------------------------------------------------------------------------------------#
-#-- Semaphore to allow only one thread to print at a time ----------------------------------------------#
-#screen_lock = Semaphore(value=1)
 #-- Establish connection to server ---------------------------------------------------------------------#
 server = ('localhost', 50000)
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

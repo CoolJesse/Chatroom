@@ -9,10 +9,10 @@ SERVER_ID = "Server0001"
 
 HOST = "localhost"
 PORT_NUMBER = "50000"
-IP_ADDRESS = socket.gethostbyname(socket.getfqdn())
+#IP_ADDRESS = socket.gethostbyname(socket.getfqdn())
 #----------------------------------------------------------------------------------------------------------------------#
 #---------------------------------------- List of all peers and their info --------------------------------------------#
-peers = []
+peers = [] #-- List of all peers who are allowed to connect --#
 active_peers = [] #-- List of peer connected to the chatroom --#
 #----------------------------------------------------------------------------------------------------------------------#
 
